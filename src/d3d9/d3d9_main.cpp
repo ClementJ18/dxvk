@@ -20,7 +20,17 @@ namespace dxvk {
     if (!ppDirect3D9Ex)
       return D3DERR_INVALIDCALL;
 
-    *ppDirect3D9Ex = ref(new D3D9InterfaceEx(Extended, pOverrideList, OverrideCount));
+    // Without a usable Vulkan device the interface throws while it is built. Return a failure
+    // instead of letting the exception leave the DLL: the caller is foreign code with no unwind
+    // tables, so the process would end there, and a caller that checks the result can fall back
+    // to another D3D9 implementation.
+    try {
+      *ppDirect3D9Ex = ref(new D3D9InterfaceEx(Extended, pOverrideList, OverrideCount));
+    } catch (const DxvkError& e) {
+      Logger::err(str::format("CreateD3D9: Failed to create D3D9 interface: ", e.message()));
+      *ppDirect3D9Ex = nullptr;
+      return D3DERR_NOTAVAILABLE;
+    }
     return D3D_OK;
   }
 }
