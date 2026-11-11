@@ -55,6 +55,12 @@ namespace dxvk::vk {
   }
 
   PFN_vkVoidFunction LibraryLoader::sym(VkInstance instance, const char* name) const {
+    // With no Vulkan loader on the system the pointer is null, and LibraryFn's members resolve
+    // their functions while it is built, before DxvkInstance checks getLoaderProc() and throws.
+    // A call through null there is an access violation that no C++ catch sees.
+    if (!m_getInstanceProcAddr)
+      return nullptr;
+
     return m_getInstanceProcAddr(instance, name);
   }
 
